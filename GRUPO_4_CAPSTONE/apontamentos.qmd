@@ -1,0 +1,182 @@
+---
+title: "Apontamentos"
+author: "Rui Vilas Boas"
+format: html
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+# Para o Capstone:
+
+**Óbitos (N.º) por Local de residência (NUTS - 2013), Sexo, Grupo etário e Mês (óbito)** 
+
+<https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_indicadores&indOcorrCod=0008179&contexto=bd&selTab=tab2> 
+
+ 
+
+**EDI (indice privação socio econoomica):** 
+
+<https://figshare.com/s/3a4226d520df3b18cb71?file=24063419> 
+
+ 
+
+**Óbitos (N.o) por Local de residência (NUTS - 2013), Sexo, Grupo etário e Mês do óbito** 
+
+ 
+
+**Perfis de mortalidade hospitalar no(a):** 
+
+**1) Cancro colo-rectal** 
+
+EDI (indice privação socio econoomica): 
+
+<https://figshare.com/s/3a4226d520df3b18cb71?file=24063419> 
+
+ 
+
+**2) Insuficiência Cardíaca** 
+
+EDI (indice privação socio econoomica): 
+
+<https://figshare.com/s/3a4226d520df3b18cb71?file=24063419> 
+
+ 
+
+**3) Eventos-cardiovasculares major (AVC+EAM)** 
+
+\% de internamentos devido à AVC+EAM, dividido por faixa etária e sexo.  
+
+linkage com população residente por concelho 2017 
+
+mapeamento dessas taxas de internamento 
+
+associação com: 
+
+EDI (indice privação socio econoomica): 
+
+<https://figshare.com/s/3a4226d520df3b18cb71?file=24063419> 
+
+nº consultas medicas nos centros de saude por localização (concelho?) e especialdiade (MGF) 2017 - INE 
+
+Taxa de mortalidade por 100.ooo habitantes por concelho 
+
+ 
+
+**4) Ricketsioses** 
+
+A taxa de incidência desta doença em Portugal é uma das mais altas quando comparada com outros países da bacia do Mediterrâneo. Apesar da maio- ria dos casos apresentarem evolução benigna, registam-se casos graves. O número de óbitos ocorridos por esta patologia é também elevado em Portugal comparativamente a outros países onde a doença é endémica.  
+
+Paralelamente à febre escaro nodular, é de salientar a existência de outras três rickettsioses já descritas em doentes portugueses como: Lymphangitis asso- ciated rickettsiosis (LAR) causada por R. sibirica mongolitimonae 24, Tick-borne lymphoadenopathy (TIBOLA) causada R. slovaca 25 e R. raoultii, e ainda a infeção por R. monacensis 26 ainda não denomina- da.  
+
+EDI (indice privação socio econoomica): 
+
+<https://figshare.com/s/3a4226d520df3b18cb71?file=24063419> 
+
+ 
+
+**5) Caracterização de Perfis de Mortalidade Hospitalar (Adultos)** 
+
+descrição da população internada 
+
+\% de porpulação internada por local de residencia, dividido por faixa etária e sexo.  
+
+(linkage com população residente por concelho 2017) 
+
+mapeamento dessas taxas de internamento 
+
+quantas pessoas morrem decorrentes de um internamento hospitalar? 
+
+mortos por concelho \[causas de morte 2017 do INE\] - mortos na BD GDH  ou 
+
+tx mortalidade GDH / concelho e comparação com tx mortalidade por concelho do INE 
+
+mapeamento 
+
+(ajustado ao envelhecimento do concelho - BD do INE e 
+
+ajustado ao indice de privação socioeconomica) 
+
+quais as principais causas de morte? 
+
+Proporção (%) de óbitos causados por doenças do aparelho circulatório,\
+tumores malignos, doenças do aparelho respiratório e acidentes, por grupo etário, Portugal, 2017 (INE)\
+vs 
+
+as mesmas proporções na mortalidade hospitalar  
+
+quais a diferenças de mortalidade hospitalar entre regiões? 
+
+mortalidade x região de residencia, por idade, sexo, zona urbana/rural e por privação socio-económica 
+
+linkage com EDI (indice privação socio econoomica):<https://figshare.com/s/3a4226d520df3b18cb71?file=24063419> 
+
+linkage com zona rural/urbana:    
+
+qual o burden para os serviços no período peri-morte, entre internados? 
+
+quantos dias de internamento até à morte, por sexo, idade e grandes grupos de GDH 
+
+(kaplan-meyer), regressão 
+
+sazonalidade da mortalidade por meses do ano, geral e entre grupos GDH, por sexo, idade e local de residencia 
+
+padroes por meses (sexo e idade acima de 70) e excesso de mortes no inverno 
+
+qual o efeito da hora de entrada na Urgência na mortalidade? 
+
+horas de admissão x tx de mortalidade 
+
+associação das horas de admissão na mortalidade nas primeiras 48h e tardia   
+
+por hospital?
+
+```{r}
+# ICD10 de C18, C19, C20 e C21 (um a um)
+base_gdh_ICD10_C18 <- base_gdh |>
+  filter(str_detect(cod_diagnostico, "C18"))
+base_gdh_ICD10_C19 <- base_gdh |>
+  filter(str_detect(cod_diagnostico, "C19"))
+base_gdh_ICD10_C20 <- base_gdh |>
+  filter(str_detect(cod_diagnostico, "C20"))
+base_gdh_ICD10_C21 <- base_gdh |>
+  filter(str_detect(cod_diagnostico, "C21"))
+```
+
+```{r}
+# # ICD10 de C18, C19, C20 e C21 (mas a correr um vetor)
+codigos <- c("C18", "C19", "C20", "C21")
+
+base_gdh_ICD10 <- lapply(codigos, function(codigo) {
+  base_gdh |> filter(str_detect(cod_diagnostico, codigo))
+})
+
+names(base_gdh_ICD10) <- paste0("base_gdh_ICD10_", codigos)
+
+#base_gdh_ICD10_C18 <- base_gdh_ICD10[["base_gdh_ICD10_C18"]]
+#base_gdh_ICD10_C19 <- base_gdh_ICD10[["base_gdh_ICD10_C19"]]
+#base_gdh_ICD10_C20 <- base_gdh_ICD10[["base_gdh_ICD10_C20"]]
+#base_gdh_ICD10_C21 <- base_gdh_ICD10[["base_gdh_ICD10_C21"]]
+```
+
+Regressão de Cox para análise multivariada
+
+Modelo para análise de sobrevivência: kaplan meier

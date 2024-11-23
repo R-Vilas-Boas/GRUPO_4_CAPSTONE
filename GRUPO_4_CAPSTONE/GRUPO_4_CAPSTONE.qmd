@@ -1,0 +1,319 @@
+---
+title: "Análise de Internamentos por Cancro Colo-Retal em Portugal: 2017 (_Dados provisórios_)"
+author: "Rui Vilas Boas, Valter Loureiro"
+affiliation: 
+    - Escola Nacional de Saúde Pública
+lang: pt
+output-dir: outputs
+date: today
+date-format: long
+format:
+  html:
+    smooth-scroll: true
+    self-contained: true
+    preview: false
+    embed-resources: true
+    toc: true
+    toc-location: left
+    number-sections: true
+    number-depth: 3
+    code_download: true
+    code-copy: true
+editor: visual
+execute:
+  echo: false
+  warning: false
+  message: false
+  error: true
+bibliography: references/ron.bib  # Caminho para o arquivo BibTeX
+csl: references/vancouver.csl     # Estilo CSL para Vancouver
+link-citations: true              # Adicionar links nas citações
+---
+
+![](images/WhatsApp%20Image%202024-11-19%20at%2019.51.25.jpeg){fig-align="center" width="160"}
+
+```{r}
+#Setup
+
+rm(list = ls(all.names = TRUE)) 
+# limpa todos os objetos, incluindo os ocultos
+# boa política se houver objetos antigos não relevantes
+# melhoria da performance
+
+#install.packages("rio")
+#install.packages("janitor")
+#install.packages("sf")
+#install.packages("gtsummary")
+#install.packages("gt")
+#install.packages("tidyverse")
+library(rio)       # importação de dados
+library(janitor)   # limpeza de dados
+library(sf)        # ler arquivo GeoJSON
+library(gtsummary)
+library(gt)
+library(tidyverse) # conjunto de pacotes integrados(dplyr. : Para manipulação de dados;
+                   #                                stringr: Para manipulação de strings;)
+```
+
+# Contexto e Objetivos
+
+De acordo com o Relatório do Registo Oncológico Nacional de 2020, as doenças oncológicas são a segunda principal causa de mortalidade em Portugal, com o Cancro Colorretal (CCR) a ocupar o segundo lugar entre as causas de morte no país.
+
+Esta trabalho serve como produto final do *Curso de Datascience em Healthcare - programação em R* e pretende complementar os relatórios nacionais do CCR com uma perspetiva baseada em dados de internamento. Para esta finalidade, utilizou-se a Base de Dados de Grupos de Diagnóstico Homogéneos (GDH), que contém informações sobre episódios de internamento hospitalar, organizados em categorias de diagnósticos e tratamentos semelhantes.
+
+O presente relatório constitui um exemplo sumário do que poderia ser uma análise mais extensiva, disponibilizado no [GitHub](https://github.com/R-Vilas-Boas/grupo_4_capstone.git) para facilitar a sua continuidade, através de um trabalho colaborativo entre os membros da equipa.
+
+**Este relatório focará em episódios de internamento por CCR, explorando variáveis como idade, género e distribuição geográfica.**
+
+De referir que, a distribuição dos centros de tratamento com capacidade para a gestão autónoma do doente oncológico não é uniforme pelo território nacional exigindo a deslocação de doentes [@ACSS]. A Base de dados GDH possibilita obter informações sobre o local de residência dos doentes e a unidade de saúde de internamento.
+
+<!-- 
+\ Módulo 2:
+
+- Explique qual base de dados utilizou e descreva as variáveis empregadas, assim como o objetivo da exploração da base de dados;
+
+- O código de suas análises deve estar visível;
+
+- Utilize pelo menos 3 funcionalidades do módulo 2 (referências, inline coding, adicionar imagem)
+-->
+
+**Metodologia**
+
+A base de dados, como referido é a base de dados modificada de morbilidade hospitalar do Serviço Nacional de Saúde (SNS) ‘’base.GDH’’. Usamos ainda as bases de dados: codigos_diagnostico_icd10, codigos_residencia, concelhos_portugal_light.
+
+```{r}
+base_gdh <- import("datasets/base_gdh/base_gdh_icd10_no_freg.csv")|>
+  clean_names()
+n_internamentos <- nrow(base_gdh)
+#names(base_gdh)  # Usado para saber os nomes das variáveis a possiveis de estudar
+```
+
+**Definição de caso**
+
+Os episódios de CCR foram considerados aqueles com os códigos ICD-10 neoplasia maligna colorretal.
+
+**Cod_diagnostico**: variável categórica que identifica o diagnóstico principal durante o internamento, codificado de acordo com a ICD-10-CM/PCS (“*International Classification of Diseases, 10th Revision, Clinical Modification/Procedures*”). Foram selecionados os códigos C18 a C21.
+
+```{r}
+colon <- "C18"
+rectossigmoid <-"C19"
+recto <- "C20"
+anal <- "C21"
+
+colo_rectal <- paste(colon, rectossigmoid, recto, anal, sep = "|")
+
+base_gdh_ICD10_C18_C21 <- base_gdh |>
+  filter(str_detect(cod_diagnostico, colo_rectal))
+n_inter_colo_rectal <- nrow(base_gdh_ICD10_C18_C21)
+tax_inter_colo_rectal <- round(n_inter_colo_rectal/n_internamentos*1000, 2)
+```
+
+```{r}
+codigos_icd10 <- import("datasets/base_gdh/codigos_diagnostico_icd10.csv")|>
+  clean_names()
+#names(codigos_icd10)  # Usado para saber os nomes das variáveis a possiveis de estudar
+
+cod_colo_rectal <- c(colon, rectossigmoid, recto, anal)
+df_icd10_to_pt <- codigos_icd10 |>
+  filter(codigo_icd_10_cm %in% cod_colo_rectal) |>
+  select(codigo = codigo_icd_10_cm, descricao = pt)
+df_icd10_to_pt|>
+  knitr::kable(col.names = c("Código", "Descrição"))
+```
+
+```{r}
+clean_ICD10_C18_C21 <- base_gdh_ICD10_C18_C21 |>
+  select(-seq_number, -hosp_id, -hora_entrada, -hora_urgencia, -freguesia) |>
+  rowwise() |>
+  mutate(diagnostico = {
+    matching_desc <- df_icd10_to_pt |>
+      filter(str_detect(cod_diagnostico, codigo)) |>
+      pull(descricao) 
+    if (length(matching_desc) > 0) matching_desc else NA_character_
+  })
+```
+
+**Descrição das variáveis empregadas**
+
+Além das variáveis de interesse referentes ao CCR foram selecionadas as seguintes variáveis:
+
+**Sexo**: variável categórica com 3 valores possíveis (masculino, feminino, indeterminado), que indica o sexo do utente.
+
+**Idade**: variável numérica que representa a idade do utente (em anos).
+
+**Distrito**: variável numérica com 30 valores possíveis, cujos códigos apresentam dois dígitos e correspondem à codificação dos distritos existentes à data de extração dos dados, referente ao distrito de residência do utente.
+
+**Concelho**: variável numérica com 313 valores possíveis, cujos códigos apresentam dois dígitos e correspondem à codificação de concelhos existentes no SONHO à data de extração dos dados referente ao concelho de residência do utentes.
+
+**Dias_int**: variável ordinal que indica o total de dias de internamento do utente na instituição de saúde, em conformidade com a definição estatística de tempo de internamento estabelecida pela portaria em vigor à data de extração dos dados.
+
+# Análise Exploratória dos Dados
+
+<!-- 
+Módulo 3:
+
+- Desenvolva uma análise exploratória dos dados de pelo menos 3 variáveis;
+
+- Documento erros da base e o que fez para os resolver.
+-->
+
+Do total de internamentos (`r n_internamentos`), `r n_inter_colo_rectal` são internamentos de doentes com neoplasia colo-rectal (`r tax_inter_colo_rectal`‰).
+
+```{r}
+summary_df <- clean_ICD10_C18_C21 |>
+  group_by(diagnostico) |>
+  summarise(
+    count = n(),
+    percentage = round((n() / nrow(clean_ICD10_C18_C21)) * 100, 2),
+    mean_age = round(mean(idade, na.rm = TRUE), 2),
+    mean_int_days = round(mean(dias_int, na.rm = TRUE), 2)
+  ) |>
+  arrange(desc(count))
+
+summary_df|>
+  knitr::kable(col.names = c("Diagnóstico", "Nº Casos", "Percentagem", "Média Idades", "Média Dias Internamento"))
+```
+
+# Visualização de Dados
+
+<!-- 
+Módulo 4:
+
+- Desenvolva visualizações de dados usando ggplot2, podendo incluir dados espaciais.
+
+- Deve apresentar pelo menos 3 figuras diferentes.
+-->
+
+Aqui apresentamos a distribuição de idades entre homens e mulheres.
+
+```{r}
+#| fig-height: 5
+#| fig-width: 7.5
+#| 
+p1 <- ggplot(data = clean_ICD10_C18_C21, 
+       aes(x = idade, fill = sexo)) +
+  geom_histogram(alpha = .4) +
+  labs(
+    title = "Distribuição de idades",
+    y = "Contagem da frequência de idades",
+    fill = "Género",
+    x = "Idade", 
+    caption = "..."
+  ) +
+  coord_cartesian(expand = FALSE) +
+  theme_classic() +
+  scale_fill_manual(values = c("#ef8a62","#91bfdb"))
+
+
+p2 <- ggplot(data = clean_ICD10_C18_C21, aes(x = as.factor(sexo), y = idade, fill = as.factor(sexo))) +
+  geom_boxplot(alpha = .4) +
+  labs(x = "Género", y = "Idade", fill= "Género") +
+  theme_classic() +
+  scale_fill_manual(values = c("#ef8a62","#91bfdb"))
+
+p1
+p2
+```
+
+A relação entre dias de internamento e idade:
+
+```{r}
+p2 <- ggplot(data = clean_ICD10_C18_C21, 
+             aes(x = idade,
+                 y = dias_int)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = lm, 
+              se = FALSE,
+              linetype = "dashed") +
+  labs(title = "Dias de internamento por idade", 
+       y = "Dias de internamento", 
+       x = "Idade") +
+  theme_minimal()
+
+p2
+```
+
+<!-- 
+Mapa
+-->
+
+```{r}
+codigos_residencia <- import("datasets/base_gdh/codigos_residencia.csv")|>
+  clean_names()
+
+
+clean_ICD10_C18_C21_map <- clean_ICD10_C18_C21 |>
+  left_join(codigos_residencia, 
+            by = c("distrito" = "cod_dist", "concelho" = "cod_conc"))|>
+  select(-distrito, -concelho, -cod_freg)
+
+
+populacao <- import("datasets/AER2022_II_01/II_01_02.csv")|>
+  clean_names()|>
+  select(v1,v2)
+```
+
+```{r}
+#mapa
+comm_pt <- st_read(
+  "datasets/map_json_portugal/concelhos_portugal_light.json",
+  quiet = TRUE) |> 
+  clean_names()
+```
+
+# Modelos Estatísticos
+
+<!-- 
+Módulo 5:
+
+- Desenvolva uma tabela sumária de dados.
+
+OPCIONAL: Elabore um modelo de regressão, apresentando os resultados em uma tabela e num gráfico. 
+OPCIONAL: Pode desenvolver um modelo de machine learning como alternativa (Módulo 6).
+-->
+
+```{r}
+tabela1 <- tbl_summary(
+  clean_ICD10_C18_C21_map,
+  include = c(sexo, idade, dias_int , mortalidade_apr31), 
+  by = diagnostico,
+  missing = "no",
+  statistic = list(
+  all_continuous() ~ "{mean} ({sd})",
+  all_categorical() ~ "{n} / {N} ({p}%)"),
+  label =list(
+    sexo= "Sexo", 
+    idade= "Idade", 
+    dias_int= "Dias de internamento",
+    mortalidade_apr31="Mortalidade"
+  )   
+) |> 
+  modify_spanning_header() |>
+  add_n() |> 
+  add_p() |>  
+  modify_header(label = "**Característica**") |>  
+  bold_labels()|> #
+  as_gt() |>  
+  tab_header(
+    title = md("**Análise do Cancro Colo-rectal em Portugal**") ,
+  ) |>
+ 
+  fmt_number( decimals = 2) |>   
+  opt_stylize(style = 1, color = "gray") |> 
+  opt_align_table_header(align = "left") 
+
+
+tabela1
+```
+
+<!-- 
+# Integração e Automação
+
+Modulo 6
+OPCIONAL: Desenvolva um dashboard com os resultados obtidos.
+-->
+
+# Referências
+
+::: {#refs}
+:::

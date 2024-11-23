@@ -1,0 +1,11 @@
+project:
+  title: "GRUPO_4_CAPSTONE"
+  output-dir: outputs
+
+format:
+  html:
+    smooth-scroll: true
+    self-contained: true  
+  
+
+editor: visual

@@ -1,0 +1,46 @@
+retirado:
+Pretende-se também compreender fatores associados a desfechos e utilizar um modelo causal para estudar a progressão clínica.
+Esta análise inclui ainda variáveis de condições de acesso aos cuidados de saúde pelo seu carácter preventivo (o número de utentes com médico de família) bem como de condições socioeconómicas, assumindo a relação previamente estabelecida por Mahiben Maruthappuentre entre crise económica e o aumento da mortalidade por cancro [@Bento2023]. Não sendo possível obter dados socioeconómicos a nível individual, considerou-se o nível do local de residência dos indivíduos como um fator influenciador no acesso e na procura de cuidados de saúde. Expoem-se de seguida o modelo explicativo tido por base. 
+
+O diagrama causal que serviu de base à seleção destas variáveis encontra-se na [Figura 1](#fig-dag_figura).
+
+```{r}
+
+library(dagitty)
+library(ggdag)
+library(ggplot2)
+
+# Definir o DAG
+dag_ccr_atualizado <- dagitty('
+dag {
+   NSocioecon -> AcessoCuidados
+   NSocioecon -> FRModificaveis
+   AcessoCuidados -> Rastreio
+   Rastreio -> Polipos
+   FRModificaveis -> CCR
+   Polipos -> CCR
+   CCR -> AltaOuMorte
+}
+')
+
+# Personalizar as coordenadas para organizar o layout
+coordinates(dag_ccr_atualizado) <- list(
+  x = c(NSocioecon = 5, AcessoCuidados = 6, Rastreio = 7, 
+        FRModificaveis = 7, Polipos = 1, CCR = 2, AltaOuMorte = 3),
+  y = c(NSocioecon = 4, AcessoCuidados = 3, Rastreio = 2, 
+        FRModificaveis = 2, Polipos = 2, CCR = 2, AltaOuMorte = 2)
+)
+
+# Visualizar o DAG ajustado
+p <- ggdag(dag_ccr_atualizado) + 
+  theme_void() +  
+  theme(
+    plot.margin = margin(1, 1, 1, 1, "cm"),  
+    text = element_text(size = 8)  
+  ) +
+  geom_dag_node(color = "black", size = 1, shape = 11) +  
+  geom_dag_text(aes(label = name), size = 1, vjust = 3, color = "black") 
+
+p
+
+```
